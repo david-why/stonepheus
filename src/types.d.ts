@@ -1,5 +1,51 @@
 // slack block kit types (partial ofc)
 
+// Composition Objects
+
+interface SlackTextObjectPlainText {
+  type: 'plain_text'
+  text: string
+  emoji?: boolean
+}
+
+interface SlackTextObjectMrkdwn {
+  type: 'mrkdwn'
+  text: string
+  verbatim?: boolean
+}
+
+type SlackTextObject = SlackTextObjectPlainText | SlackTextObjectMrkdwn
+
+// Block Kit Elements
+
+interface SlackButtonElement {
+  type: 'button'
+  text: SlackTextObject & { type: 'plain_text' }
+  action_id?: string
+  url?: string
+  value?: string
+  style?: 'primary' | 'danger'
+  confirm?: unknown
+  accessibility_label?: string
+}
+
+interface SlackImageElement {
+  type: 'image'
+  alt_text: string
+  image_url: string
+  // TODO: support slack_file
+}
+
+type SlackBlockInteractiveElement = SlackButtonElement
+
+// Blocks
+
+interface SlackContextBlock {
+  type: 'context'
+  elements: (SlackImageElement | SlackTextObject)[]
+  block_id?: string
+}
+
 interface SlackRichTextBlock {
   type: 'rich_text'
   elements: SlackRichTextObject[]
@@ -27,6 +73,14 @@ interface SlackRichTextDateElement {
   fallback?: string
 }
 
+interface SlackRichTextLinkElement {
+  type: 'link'
+  url: string
+  text?: string
+  unsafe?: boolean
+  style?: { bold?: boolean; italic?: boolean; strike?: boolean; code?: boolean }
+}
+
 interface SlackRichTextUserElement {
   type: 'user'
   user_id: string
@@ -43,25 +97,13 @@ interface SlackRichTextUserElement {
 type SlackRichTextElement =
   | SlackRichTextTextElement
   | SlackRichTextDateElement
+  | SlackRichTextLinkElement
   | SlackRichTextUserElement
 
 interface SlackActionsBlock {
   type: 'actions'
-  elements: SlackBlockElement[]
+  elements: SlackBlockInteractiveElement[]
 }
-
-interface SlackButtonElement {
-  type: 'button'
-  text: SlackTextObject & { type: 'plain_text' }
-  action_id?: string
-  url?: string
-  value?: string
-  style?: 'primary' | 'danger'
-  confirm?: unknown
-  accessibility_label?: string
-}
-
-type SlackBlockElement = SlackButtonElement
 
 interface SlackMarkdownBlock {
   type: 'markdown'
@@ -69,7 +111,17 @@ interface SlackMarkdownBlock {
   block_id?: string
 }
 
-type SlackBlock = SlackRichTextBlock | SlackActionsBlock | SlackMarkdownBlock
+interface SlackDividerBlock {
+  type: 'divider'
+  block_id?: string
+}
+
+type SlackBlock =
+  | SlackContextBlock
+  | SlackRichTextBlock
+  | SlackActionsBlock
+  | SlackMarkdownBlock
+  | SlackDividerBlock
 
 // slack events api events
 
@@ -88,12 +140,14 @@ interface SlackAppMentionEvent {
 
 interface SlackMessageEvent {
   type: 'message'
+  subtype?: string
   user: string
   ts: string
   text: string
   thread_ts: string
   channel: string
   app_id?: string
+  blocks?: SlackBlock[]
   // ...
 }
 

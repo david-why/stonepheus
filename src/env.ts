@@ -1,0 +1,22 @@
+const keys = [
+  'PORT',
+  'FRONTEND_CHANNEL_ID',
+  'BACKEND_CHANNEL_ID',
+  'SLACK_SIGNING_SECRET',
+  'SLACK_OAUTH_TOKEN',
+] as const
+
+export function getEnv(): Record<(typeof keys)[number], string> {
+  return keys
+    .map((key) => {
+      const value = process.env[key]
+      if (!value) {
+        throw new Error(`Environment variable ${key} is not set`)
+      }
+      return [key, value] as const
+    })
+    .reduce((o, [k, v]) => {
+      o[k] = v
+      return o
+    }, {} as Record<(typeof keys)[number], string>)
+}

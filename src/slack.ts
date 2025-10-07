@@ -1,4 +1,6 @@
-const { SLACK_BOT_OAUTH_TOKEN } = process.env
+import { getEnv } from "./env"
+
+const { SLACK_OAUTH_TOKEN } = getEnv()
 
 export class SlackError extends Error {
   constructor(
@@ -37,6 +39,7 @@ interface GetUserInfoResponse {
       real_name_normalized: string
       display_name_normalized: string
       team: string
+      image_original: string
       // and some more stuff
     }
     // and even more stuff...
@@ -48,7 +51,7 @@ export async function getUserInfo(userId: string) {
     `https://slack.com/api/users.info?include_locale=true&user=${userId}`,
     {
       headers: {
-        authorization: `Bearer ${SLACK_BOT_OAUTH_TOKEN}`,
+        authorization: `Bearer ${SLACK_OAUTH_TOKEN}`,
       },
     },
   )
@@ -66,10 +69,14 @@ interface PostMessageParams {
   blocks?: SlackBlock[]
   ephemeral?: boolean
   user?: string
+  icon_url?: string
+  username?: string
 }
 
 interface PostMessageResponse {
   ok: true
+  channel: string
+  ts: string
 }
 
 export async function postMessage(parameters: PostMessageParams) {
@@ -97,7 +104,7 @@ export async function postMessage(parameters: PostMessageParams) {
       body,
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: `Bearer ${SLACK_BOT_OAUTH_TOKEN}`,
+        Authorization: `Bearer ${SLACK_OAUTH_TOKEN}`,
       },
     },
   )
@@ -106,6 +113,7 @@ export async function postMessage(parameters: PostMessageParams) {
     console.error(data)
     throw new SlackError('chat.postMessage', data)
   }
+  return data
 }
 
 interface AuthTestResponse {
@@ -121,7 +129,7 @@ export async function authTest() {
   const res = await fetch(`https://slack.com/api/auth.test`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${SLACK_BOT_OAUTH_TOKEN}`,
+      Authorization: `Bearer ${SLACK_OAUTH_TOKEN}`,
     },
   })
   const data = (await res.json()) as AuthTestResponse | ErrorResponse
@@ -151,7 +159,7 @@ export async function addReaction(params: AddReactionParams) {
     method: 'POST',
     body: bodyBuilder.toString(),
     headers: {
-      Authorization: `Bearer ${SLACK_BOT_OAUTH_TOKEN}`,
+      Authorization: `Bearer ${SLACK_OAUTH_TOKEN}`,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
   })
@@ -191,7 +199,7 @@ export async function removeReaction(params: RemoveReactionParams) {
     method: 'POST',
     body: bodyBuilder.toString(),
     headers: {
-      Authorization: `Bearer ${SLACK_BOT_OAUTH_TOKEN}`,
+      Authorization: `Bearer ${SLACK_OAUTH_TOKEN}`,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
   })
@@ -225,7 +233,7 @@ export async function getMessage(params: GetMessageParams) {
     `https://slack.com/api/conversations.replies?${bodyBuilder.toString()}`,
     {
       headers: {
-        Authorization: `Bearer ${SLACK_BOT_OAUTH_TOKEN}`,
+        Authorization: `Bearer ${SLACK_OAUTH_TOKEN}`,
       },
     },
   )
