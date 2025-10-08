@@ -141,8 +141,11 @@ interface SlackAppMentionEvent {
 interface SlackMessageEvent {
   type: 'message'
   subtype?: string
+  hidden?: boolean
   user: string
   ts: string
+  bot_id?: string
+  app_id?: string
   text: string
   thread_ts: string
   channel: string

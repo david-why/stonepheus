@@ -34,3 +34,11 @@ export async function createRequest(
   const data = select(request, 'frontend_ts', 'backend_ts')
   await sql`INSERT INTO requests ${sql(data)}`
 }
+
+export async function setRequestResolvedByFrontend(frontendTs: string, resolved: boolean = true) {
+  await sql`UPDATE requests SET resolved = ${resolved} WHERE frontend_ts = ${frontendTs}`
+}
+
+export async function setRequestResolvedByBackend(backendTs: string, resolved: boolean = true) {
+  await sql`UPDATE requests SET resolved = ${resolved} WHERE backend_ts = ${backendTs}`
+}
