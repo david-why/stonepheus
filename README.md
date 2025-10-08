@@ -1,15 +1,7 @@
-# stopheus
+# stonepheus
 
-To install dependencies:
+Slack bot that handles ticketing in the #ask-the-stonemasons channel on the Hack Club Slack.
 
-```bash
-bun install
-```
+## Setup instructions
 
-To run:
-
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.2.21. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+To be written
