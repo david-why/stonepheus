@@ -14,7 +14,6 @@ const { PORT, FRONTEND_CHANNEL_ID, BACKEND_CHANNEL_ID, SLACK_APP_ID } = getEnv()
 const RESOLVED_EMOJI = 'stonepheus-resolved'
 
 async function handleEvent(event: SlackEvent) {
-  console.log(event)
   if (
     event.type === 'message' &&
     (!event.subtype || ['file_share'].includes(event.subtype))
@@ -42,7 +41,10 @@ async function handleNewTicket(event: SlackMessageEvent) {
   const { ts: backendTs } = await postMessage({
     channel: BACKEND_CHANNEL_ID,
     username: ticketAuthor.profile.display_name,
-    icon_url: ticketAuthor.profile.image_original,
+    icon_url:
+      ticketAuthor.profile.image_original ||
+      ticketAuthor.profile.image_1024 ||
+      ticketAuthor.profile.image_512,
     blocks: messageBlocks.concat(await getFileBlocks(event.files ?? [])),
   })
   await Promise.all([
@@ -72,6 +74,7 @@ async function handleFrontendReply(event: SlackMessageEvent) {
       ephemeral: true,
       user: event.user,
     })
+    return
   }
   const messageBlocks = event.blocks ?? [{ type: 'markdown', text: event.text }]
   await postMessage({
@@ -86,11 +89,12 @@ async function handleFrontendReply(event: SlackMessageEvent) {
 async function handleBackendReply(event: SlackMessageEvent) {
   const request = await getRequestByBackend(event.thread_ts)
   if (!request) return
+  if (event.text && event.text.startsWith('\\')) return
   const messageBlocks = event.blocks ?? [{ type: 'markdown', text: event.text }]
   await postMessage({
     channel: FRONTEND_CHANNEL_ID,
     thread_ts: request.frontend_ts,
-    blocks: messageBlocks.concat(await getFileBlocks(event.files ?? [])),
+    blocks: messageBlocks.concat(await getFileBlocks(event.files ?? [], true)),
   })
 }
 

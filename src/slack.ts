@@ -36,7 +36,9 @@ interface GetUserInfoResponse {
       real_name_normalized: string
       display_name_normalized: string
       team: string
-      image_original: string
+      image_512: string
+      image_1024?: string
+      image_original?: string
       // and some more stuff
     }
     // and even more stuff...
@@ -240,4 +242,121 @@ export async function getMessage(params: GetMessageParams) {
     throw new SlackError('conversations.history', data)
   }
   return data.messages[0] as GetMessageResponse | undefined
+}
+
+interface UploadFileParams {
+  file: Blob
+  filename: string
+  channel_id?: string
+  thread_ts?: string
+}
+
+interface GetUploadURLResponse {
+  ok: true
+  upload_url: string
+  file_id: string
+}
+
+interface CompleteUploadResponse {
+  ok: true
+  files: { id: string; title: string }[]
+}
+
+export async function uploadFile(params: UploadFileParams) {
+  const getUrlRes = await fetch(
+    'https://slack.com/api/files.getUploadURLExternal',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SLACK_OAUTH_TOKEN}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        length: params.file.size.toString(),
+        filename: params.filename,
+      }).toString(),
+    }
+  )
+  const getUrlData = (await getUrlRes.json()) as
+    | GetUploadURLResponse
+    | ErrorResponse
+  if (!getUrlData.ok) {
+    console.error(getUrlData)
+    throw new SlackError('files.getUploadURLExternal', getUrlData)
+  }
+  const { upload_url: uploadUrl, file_id: fileId } = getUrlData
+
+  const uploadRes = await fetch(uploadUrl, {
+    method: 'POST',
+    body: params.file,
+  })
+  if (uploadRes.status !== 200) {
+    const uploadText = await uploadRes.text()
+    throw new Error(`Failed to upload file to Slack: ${uploadText}`)
+  }
+
+  const completePayload = new URLSearchParams({
+    files: JSON.stringify([{ id: fileId }]),
+  })
+  if (params.channel_id) {
+    completePayload.set('channel_id', params.channel_id)
+  }
+  if (params.thread_ts) {
+    completePayload.set('thread_ts', params.thread_ts)
+  }
+  const completeRes = await fetch(
+    'https://slack.com/api/files.completeUploadExternal',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SLACK_OAUTH_TOKEN}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: completePayload.toString(),
+    }
+  )
+  const completeData = (await completeRes.json()) as
+    | CompleteUploadResponse
+    | ErrorResponse
+  if (!completeData.ok) {
+    console.error(completeData)
+    throw new SlackError('files.completeUploadExternal', completeData)
+  }
+
+  return completeData
+}
+
+interface GetFileInfoParams {
+  file: string
+  count?: number
+  cursor?: string
+  limit?: number
+  page?: number
+}
+
+interface GetFileInfoResponse {
+  ok: true
+  file: SlackFileObject
+}
+
+export async function getFileInfo(params: GetFileInfoParams) {
+  const payload = new URLSearchParams({ file: params.file })
+  if (params.count !== undefined) payload.set('count', params.count.toString())
+  if (params.cursor) payload.set('cursor', params.cursor)
+  if (params.limit !== undefined) payload.set('limit', params.limit.toString())
+  if (params.page !== undefined) payload.set('page', params.page.toString())
+  const res = await fetch(
+    `https://slack.com/api/files.info?${payload.toString()}`,
+    {
+      headers: {
+        Authorization: `Bearer ${SLACK_OAUTH_TOKEN}`,
+      },
+    }
+  )
+  const data = (await res.json()) as GetFileInfoResponse | ErrorResponse
+  if (!data.ok) {
+    console.error(data)
+    throw new SlackError('files.info', data)
+  }
+  return data
 }

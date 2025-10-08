@@ -1,3 +1,8 @@
+import { getEnv } from './env'
+import { getFileInfo, uploadFile } from './slack'
+
+const { SLACK_OAUTH_TOKEN } = getEnv()
+
 export function select<T, K extends keyof T>(
   obj: T,
   ...keys: K[]
@@ -10,9 +15,15 @@ export function select<T, K extends keyof T>(
 }
 
 export async function getFileBlocks(
-  files: SlackFileObject[]
+  files: SlackFileObject[],
+  reshare: boolean = false
 ): Promise<SlackBlock[]> {
   if (!files.length) return []
+  if (reshare) {
+    files = await Promise.all(
+      files.map((f) => uploadFileHelper(f))
+    )
+  }
   return [
     {
       type: 'context',
@@ -24,4 +35,31 @@ export async function getFileBlocks(
       ],
     },
   ]
+}
+
+async function uploadFileHelper(file: SlackFileObject) {
+  const blobRes = await fetch(file.url_private_download, {
+    headers: {
+      Authorization: `Bearer ${SLACK_OAUTH_TOKEN}`,
+    },
+  })
+  if (!blobRes.ok) {
+    throw new Error(
+      `Failed to download Slack file: ${blobRes.status} ${await blobRes.text()}`
+    )
+  }
+  const blob = (await blobRes.blob()) as unknown as Blob
+  const {
+    files: [newFile],
+  } = await uploadFile({
+    file: blob,
+    filename: file.name,
+  })
+  if (!newFile) {
+    throw new Error('No file received in upload response')
+  }
+  const fileInfo = await getFileInfo({
+    file: newFile.id,
+  })
+  return fileInfo.file
 }
