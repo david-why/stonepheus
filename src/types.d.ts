@@ -151,6 +151,7 @@ interface SlackMessageEvent {
   channel: string
   app_id?: string
   blocks?: SlackBlock[]
+  files?: SlackFileObject[]
   // ...
 }
 
@@ -244,4 +245,17 @@ interface SlackSlashCommandRequest {
   is_enterprise_install: 'true' | 'false'
   response_url: string
   trigger_id: string
+}
+
+// general slack objects
+
+interface SlackFileObject {
+  id: string
+  name: string
+  title: string
+  user: string
+  url_private: string
+  url_private_download: string
+  permalink: string
+  // ...
 }

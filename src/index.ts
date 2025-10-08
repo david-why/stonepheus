@@ -7,6 +7,7 @@ import {
 import { getEnv } from './env'
 import { getVerifiedData } from './signature'
 import { addReaction, getUserInfo, postMessage } from './slack'
+import { getFileBlocks } from './utils'
 
 const { PORT, FRONTEND_CHANNEL_ID, BACKEND_CHANNEL_ID, SLACK_APP_ID } = getEnv()
 
@@ -42,7 +43,7 @@ async function handleNewTicket(event: SlackMessageEvent) {
     channel: BACKEND_CHANNEL_ID,
     username: ticketAuthor.profile.display_name,
     icon_url: ticketAuthor.profile.image_original,
-    blocks: messageBlocks,
+    blocks: messageBlocks.concat(await getFileBlocks(event.files ?? [])),
   })
   await Promise.all([
     createRequest({
@@ -78,7 +79,7 @@ async function handleFrontendReply(event: SlackMessageEvent) {
     thread_ts: request.backend_ts,
     username: user.profile.display_name,
     icon_url: user.profile.image_original,
-    blocks: messageBlocks,
+    blocks: messageBlocks.concat(await getFileBlocks(event.files ?? [])),
   })
 }
 
@@ -89,7 +90,7 @@ async function handleBackendReply(event: SlackMessageEvent) {
   await postMessage({
     channel: FRONTEND_CHANNEL_ID,
     thread_ts: request.frontend_ts,
-    blocks: messageBlocks,
+    blocks: messageBlocks.concat(await getFileBlocks(event.files ?? [])),
   })
 }
 
