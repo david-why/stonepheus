@@ -5,6 +5,7 @@ const keys = [
   'SLACK_SIGNING_SECRET',
   'SLACK_OAUTH_TOKEN',
   'SLACK_APP_ID',
+  'SIEGE_SESSION',
 ] as const
 
 export function getEnv(): Record<(typeof keys)[number], string> {

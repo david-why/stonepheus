@@ -1,4 +1,5 @@
 import { getEnv } from './env'
+import { select } from './utils'
 
 const { SLACK_OAUTH_TOKEN } = getEnv()
 
@@ -387,10 +388,44 @@ export async function getConversationMembers(
       },
     }
   )
-  const data = (await res.json()) as GetConversationMembersResponse | ErrorResponse
+  const data = (await res.json()) as
+    | GetConversationMembersResponse
+    | ErrorResponse
   if (!data.ok) {
     console.error(data)
     throw new SlackError('conversations.members', data)
   }
   return data
+}
+
+interface ChatUnfurlParams {
+  channel: string
+  ts: string
+  unfurls: Record<string, { blocks: SlackBlock[] }>
+}
+
+interface ChatUnfurlResponse {
+  ok: true
+}
+
+export async function chatUnfurl(params: ChatUnfurlParams) {
+  // const payload = select(params, 'channel', 'ts', 'unfurls')
+  const payload = new URLSearchParams(select(params, 'channel', 'ts'))
+  payload.set('unfurls', JSON.stringify(params.unfurls))
+  const res = await fetch(
+    `https://slack.com/api/chat.unfurl?${payload.toString()}`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SLACK_OAUTH_TOKEN}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: payload,
+    }
+  )
+  const data = (await res.json()) as ChatUnfurlResponse | ErrorResponse
+  if (!data.ok) {
+    console.error(data)
+    throw new SlackError('chat.unfurl', data)
+  }
 }

@@ -111,9 +111,26 @@ interface SlackMarkdownBlock {
   block_id?: string
 }
 
+interface SlackImageBlock {
+  type: 'image'
+  alt_text: string
+  image_url: string
+  title?: string
+  block_id?: string
+  // slack_file?
+}
+
 interface SlackDividerBlock {
   type: 'divider'
   block_id?: string
+}
+
+interface SlackSectionBlock {
+  type: 'section'
+  text: SlackTextObject
+  block_id?: string
+  expand?: boolean
+  // fields, accessory
 }
 
 type SlackBlock =
@@ -121,7 +138,9 @@ type SlackBlock =
   | SlackRichTextBlock
   | SlackActionsBlock
   | SlackMarkdownBlock
+  | SlackImageBlock
   | SlackDividerBlock
+  | SlackSectionBlock
 
 // slack events api events
 
@@ -155,6 +174,18 @@ interface SlackMessageEvent {
   // ...
 }
 
+interface SlackLinkSharedEvent {
+  type: 'link_shared'
+  channel: string
+  is_bot_user_member: boolean
+  user: string
+  message_ts: string
+  unfurl_id: string
+  thread_ts?: string
+  source?: 'composer' | 'conversations_history'
+  links: { domain: string; url: string }[]
+}
+
 interface SlackReactionAddedEvent {
   type: 'reaction_added'
   user: string
@@ -175,6 +206,7 @@ interface SlackReactionAddedEvent {
 type SlackEvent =
   | SlackAppMentionEvent
   | SlackMessageEvent
+  | SlackLinkSharedEvent
   | SlackReactionAddedEvent
 
 // request bodies sent by slack to our endpoint

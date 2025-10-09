@@ -7,9 +7,11 @@ import {
   setUserShown,
 } from './database'
 import { getEnv } from './env'
+import { getProjectInfo } from './scrape'
 import { getVerifiedData } from './signature'
 import {
   addReaction,
+  chatUnfurl,
   getConversationMembers,
   getUserInfo,
   postMessage,
@@ -37,6 +39,79 @@ async function handleEvent(event: SlackEvent) {
       event.app_id !== SLACK_APP_ID
     ) {
       await handleBackendReply(event)
+    }
+  } else if (event.type === 'link_shared') {
+    if (!event.is_bot_user_member) return
+    if (event.source === 'composer') return
+    console.log(event)
+    const result: Record<string, { blocks: SlackBlock[] }> = {}
+    for (const { url } of event.links) {
+      const match = /\/armory\/([0-9]+)/.exec(url)
+      if (match) {
+        const id = parseInt(match[1]!)
+        const project = await getProjectInfo(id)
+        if (project) {
+          const safeTitle = project.title.replace(/[*<>|]/, '')
+          const contextElements: SlackTextObject[] = [
+            {
+              type: 'plain_text',
+              text: `Week ${project.week}`,
+            },
+            {
+              type: 'plain_text',
+              text: project.timeText,
+            },
+          ]
+          if (project.demoUrl) {
+            contextElements.push({
+              type: 'mrkdwn',
+              text: `<${project.demoUrl}|Demo>`,
+            })
+          }
+          if (project.repoUrl) {
+            contextElements.push({
+              type: 'mrkdwn',
+              text: `<${project.repoUrl}|Repo>`,
+            })
+          }
+          const blocks: SlackBlock[] = [
+            {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: `*${safeTitle}*`,
+              },
+            },
+            {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: project.description,
+              },
+            },
+            {
+              type: 'context',
+              elements: contextElements,
+            },
+          ]
+          if (project.screenshotUrl) {
+            blocks.splice(2, 0, {
+              type: 'image',
+              alt_text: 'Project screenshot',
+              image_url: project.screenshotUrl,
+            })
+          }
+          result[url] = { blocks }
+        }
+      }
+    }
+    console.log(result)
+    if (Object.keys(result).length) {
+      await chatUnfurl({
+        channel: event.channel,
+        ts: event.message_ts,
+        unfurls: result,
+      })
     }
   }
 }
