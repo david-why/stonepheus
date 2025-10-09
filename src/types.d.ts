@@ -259,3 +259,13 @@ interface SlackFileObject {
   permalink: string
   // ...
 }
+
+interface SlackResponseUrlPayload {
+  text?: string
+  response_type?: 'in_channel'
+  replace_original?: 'true' | 'false'
+  delete_original?: 'true' | 'false'
+  thread_ts?: string
+  blocks?: SlackBlock[]
+  mrkdwn?: 'true' | 'false'
+}

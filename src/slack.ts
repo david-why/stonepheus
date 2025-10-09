@@ -360,3 +360,37 @@ export async function getFileInfo(params: GetFileInfoParams) {
   }
   return data
 }
+
+interface GetConversationMembersParams {
+  channel: string
+  cursor?: string
+  limit?: number
+}
+
+interface GetConversationMembersResponse {
+  ok: true
+  members: string[]
+  // response_metadata.next_cursor
+}
+
+export async function getConversationMembers(
+  params: GetConversationMembersParams
+) {
+  const payload = new URLSearchParams({ channel: params.channel })
+  if (params.cursor) payload.set('cursor', params.cursor)
+  if (params.limit) payload.set('limit', params.limit.toString())
+  const res = await fetch(
+    `https://slack.com/api/conversations.members?${payload.toString()}`,
+    {
+      headers: {
+        Authorization: `Bearer ${SLACK_OAUTH_TOKEN}`,
+      },
+    }
+  )
+  const data = (await res.json()) as GetConversationMembersResponse | ErrorResponse
+  if (!data.ok) {
+    console.error(data)
+    throw new SlackError('conversations.members', data)
+  }
+  return data
+}

@@ -2,11 +2,18 @@ import {
   createRequest,
   getRequestByBackend,
   getRequestByFrontend,
+  getUserBySlackId,
   setRequestResolvedByBackend,
+  setUserShown,
 } from './database'
 import { getEnv } from './env'
 import { getVerifiedData } from './signature'
-import { addReaction, getUserInfo, postMessage } from './slack'
+import {
+  addReaction,
+  getConversationMembers,
+  getUserInfo,
+  postMessage,
+} from './slack'
 import { getFileBlocks } from './utils'
 
 const { PORT, FRONTEND_CHANNEL_ID, BACKEND_CHANNEL_ID, SLACK_APP_ID } = getEnv()
@@ -90,12 +97,29 @@ async function handleBackendReply(event: SlackMessageEvent) {
   const request = await getRequestByBackend(event.thread_ts)
   if (!request) return
   if (event.text && event.text.startsWith('\\')) return
+  const dbUser = await getUserBySlackId(event.user)
+  const isShown = dbUser?.shown ?? false
   const messageBlocks = event.blocks ?? [{ type: 'markdown', text: event.text }]
-  await postMessage({
-    channel: FRONTEND_CHANNEL_ID,
-    thread_ts: request.frontend_ts,
-    blocks: messageBlocks.concat(await getFileBlocks(event.files ?? [], true)),
-  })
+  if (isShown) {
+    const user = await getUserInfo(event.user)
+    await postMessage({
+      channel: FRONTEND_CHANNEL_ID,
+      thread_ts: request.frontend_ts,
+      username: user.profile.display_name,
+      icon_url: user.profile.image_original,
+      blocks: messageBlocks.concat(
+        await getFileBlocks(event.files ?? [], true)
+      ),
+    })
+  } else {
+    await postMessage({
+      channel: FRONTEND_CHANNEL_ID,
+      thread_ts: request.frontend_ts,
+      blocks: messageBlocks.concat(
+        await getFileBlocks(event.files ?? [], true)
+      ),
+    })
+  }
 }
 
 async function handleInteraction(interaction: SlackInteraction) {
@@ -106,6 +130,43 @@ async function handleInteraction(interaction: SlackInteraction) {
       await resolveTicket(backendTs, interaction.user.id)
     }
   }
+}
+
+async function handleSlashCommand(
+  name: string,
+  event: SlackSlashCommandRequest
+) {
+  switch (name) {
+    case 'show':
+      await handleShowCommand(event)
+      break
+    case 'hide':
+      await handleHideCommand(event)
+      break
+    default:
+      await respondEvent(event.response_url, { text: 'invalid command...?' })
+      break
+  }
+}
+
+async function handleShowCommand(event: SlackSlashCommandRequest) {
+  if (!(await checkIsStonemason(event.user_id, event.response_url))) return
+  await Promise.all([
+    setUserShown(event.user_id, true),
+    respondEvent(event.response_url, {
+      text: `:white_check_mark: your name will now be shown in <#${FRONTEND_CHANNEL_ID}>!`,
+    }),
+  ])
+}
+
+async function handleHideCommand(event: SlackSlashCommandRequest) {
+  if (!(await checkIsStonemason(event.user_id, event.response_url))) return
+  await Promise.all([
+    setUserShown(event.user_id, false),
+    respondEvent(event.response_url, {
+      text: `:white_check_mark: your name will now be hidden in <#${FRONTEND_CHANNEL_ID}>!`,
+    }),
+  ])
 }
 
 // util functions
@@ -227,6 +288,31 @@ async function resolveTicket(backendTs: string, user: string) {
   ])
 }
 
+async function respondEvent(
+  responseUrl: string,
+  body: SlackResponseUrlPayload
+) {
+  await fetch(responseUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+}
+
+async function checkIsStonemason(user: string, responseUrl: string) {
+  const members = await getConversationMembers({
+    channel: BACKEND_CHANNEL_ID,
+    limit: 999,
+  })
+  const isStonemason = members.members.includes(user)
+  if (!isStonemason) {
+    await respondEvent(responseUrl, { text: 'you are not a stonemason :(' })
+  }
+  return isStonemason
+}
+
 Bun.serve({
   routes: {
     '/slack/events-endpoint': async (req) => {
@@ -252,6 +338,17 @@ Bun.serve({
       ) as SlackInteraction
 
       handleInteraction(data) // intentionally not awaited
+      return new Response()
+    },
+    '/slack/command/:name': async (req) => {
+      const verified = await getVerifiedData(req)
+      if (!verified.success) return new Response(null, { status: 500 })
+      const { data: encodedData } = verified
+      const data = new URLSearchParams(
+        encodedData
+      ).toJSON() as unknown as SlackSlashCommandRequest
+
+      handleSlashCommand(req.params.name, data) // intentionally not awaited
       return new Response()
     },
   },

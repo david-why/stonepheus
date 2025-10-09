@@ -8,6 +8,11 @@ export interface StonepheusRequest {
   resolved: boolean
 }
 
+export interface StonepheusUser {
+  slack_id: string
+  shown: boolean
+}
+
 export async function getRequestByFrontend(
   frontendTs: string
 ): Promise<StonepheusRequest | undefined> {
@@ -35,10 +40,29 @@ export async function createRequest(
   await sql`INSERT INTO requests ${sql(data)}`
 }
 
-export async function setRequestResolvedByFrontend(frontendTs: string, resolved: boolean = true) {
+export async function setRequestResolvedByFrontend(
+  frontendTs: string,
+  resolved: boolean = true
+) {
   await sql`UPDATE requests SET resolved = ${resolved} WHERE frontend_ts = ${frontendTs}`
 }
 
-export async function setRequestResolvedByBackend(backendTs: string, resolved: boolean = true) {
+export async function setRequestResolvedByBackend(
+  backendTs: string,
+  resolved: boolean = true
+) {
   await sql`UPDATE requests SET resolved = ${resolved} WHERE backend_ts = ${backendTs}`
+}
+
+export async function getUserBySlackId(slackId: string) {
+  return (
+    await sql<StonepheusUser[]>`SELECT * FROM users WHERE slack_id = ${slackId}`
+  )[0]
+}
+
+export async function setUserShown(slackId: string, shown: boolean) {
+  const user = { slack_id: slackId, shown }
+  await sql`INSERT INTO users ${sql(
+    user
+  )} ON CONFLICT(slack_id) DO UPDATE SET shown = EXCLUDED.shown`
 }
