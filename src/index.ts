@@ -16,7 +16,7 @@ import {
   getUserInfo,
   postMessage,
 } from './slack'
-import { getFileBlocks } from './utils'
+import { getFileBlocks, getUserDisplayFields } from './utils'
 
 const { PORT, FRONTEND_CHANNEL_ID, BACKEND_CHANNEL_ID, SLACK_APP_ID } = getEnv()
 
@@ -121,11 +121,7 @@ async function handleNewTicket(event: SlackMessageEvent) {
   const messageBlocks = event.blocks ?? [{ type: 'markdown', text: event.text }]
   const { ts: backendTs } = await postMessage({
     channel: BACKEND_CHANNEL_ID,
-    username: ticketAuthor.profile.display_name,
-    icon_url:
-      ticketAuthor.profile.image_original ||
-      ticketAuthor.profile.image_1024 ||
-      ticketAuthor.profile.image_512,
+    ...getUserDisplayFields(ticketAuthor),
     blocks: messageBlocks.concat(await getFileBlocks(event.files ?? [])),
   })
   await Promise.all([
@@ -161,8 +157,7 @@ async function handleFrontendReply(event: SlackMessageEvent) {
   await postMessage({
     channel: BACKEND_CHANNEL_ID,
     thread_ts: request.backend_ts,
-    username: user.profile.display_name,
-    icon_url: user.profile.image_original,
+    ...getUserDisplayFields(user),
     blocks: messageBlocks.concat(await getFileBlocks(event.files ?? [])),
   })
 }
@@ -178,8 +173,7 @@ async function handleBackendReply(event: SlackMessageEvent) {
     await postMessage({
       channel: FRONTEND_CHANNEL_ID,
       thread_ts: request.frontend_ts,
-      username: user.profile.display_name,
-      icon_url: user.profile.image_original,
+      ...getUserDisplayFields(user),
       blocks: messageBlocks.concat(
         await getFileBlocks(event.files ?? [], true)
       ),

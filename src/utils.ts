@@ -1,5 +1,5 @@
 import { getEnv } from './env'
-import { getFileInfo, uploadFile } from './slack'
+import { getFileInfo, type getUserInfo, uploadFile } from './slack'
 
 const { SLACK_OAUTH_TOKEN } = getEnv()
 
@@ -14,15 +14,25 @@ export function select<T, K extends keyof T>(
   return result
 }
 
+export function getUserDisplayFields(
+  user: Awaited<ReturnType<typeof getUserInfo>>
+) {
+  return {
+    username: user.profile.display_name || user.profile.real_name,
+    icon_url:
+      user.profile.image_original ||
+      user.profile.image_1024 ||
+      user.profile.image_512,
+  }
+}
+
 export async function getFileBlocks(
   files: SlackFileObject[],
   reshare: boolean = false
 ): Promise<SlackBlock[]> {
   if (!files.length) return []
   if (reshare) {
-    files = await Promise.all(
-      files.map((f) => uploadFileHelper(f))
-    )
+    files = await Promise.all(files.map((f) => uploadFileHelper(f)))
   }
   return [
     {

@@ -33,6 +33,7 @@ interface GetUserInfoResponse {
     locale: string
     profile: {
       avatar_hash: string
+      real_name: string
       display_name: string
       real_name_normalized: string
       display_name_normalized: string
