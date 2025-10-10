@@ -6,6 +6,8 @@ Slack bot that handles ticketing in the [#ask-the-stonemasons channel](https://h
 
 Head over to [#ask-the-stonemasons](https://hackclub.slack.com/archives/C09GSTH65B7) and send a message to open a ticket. This will forward the message into a stonemason-only backend channel, where stonemasons can reply in the thread. They can choose to answer anonymously or to share their name. You can also reply in the the thread for stonemasons to see in the backend. It's basically a two-way bridge!
 
+Oh and also, there's a really simple API to get a project's basic info! You can use https://stonepheus.davidwhy.hackclub.app/api/projects/{id} without authentication.
+
 ## Setup instructions
 
 1. Install [Bun](https://bun.com) on your device.
