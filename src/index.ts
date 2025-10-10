@@ -193,7 +193,7 @@ async function checkIsUserShown(event: SlackMessageEvent) {
   if (event.text.startsWith('++')) return true
   if (event.text.startsWith('--')) return false
   const dbUser = await getUserBySlackId(event.user)
-  return dbUser?.shown ?? false
+  return dbUser?.shown ?? true
 }
 
 function getMessageBlocks(event: SlackMessageEvent) {
