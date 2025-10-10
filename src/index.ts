@@ -287,6 +287,13 @@ async function postNewTicketResponse(
     thread_ts: event.ts,
     blocks: [
       {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: '_:magic_wand: you carefully whisper your query, and as you finish, :zap: a great flash of light :zap:! and in front of you, a magical portal opened, from which a distant voice from the realm of stonemasons :siege-castle::_',
+        },
+      },
+      {
         type: 'rich_text',
         elements: [
           {
@@ -325,7 +332,7 @@ async function postNewTicketResponse(
             type: 'button',
             action_id: 'resolve_ticket',
             value: backendTs,
-            text: { type: 'plain_text', text: 'close ticket' },
+            text: { type: 'plain_text', text: 'close portal' },
             style: 'primary',
           },
         ],
@@ -375,7 +382,7 @@ async function resolveTicket(backendTs: string, user: string) {
     postMessage({
       channel: FRONTEND_CHANNEL_ID,
       thread_ts: request.frontend_ts,
-      markdown_text: `:yay: ticket marked as resolved by <@${user}>! if you have any further question please send it in a separate thread. stonemasons won't receive updates for messages here anymore!`,
+      markdown_text: `_:magic_wand: as <@${user}> waves a hand, the portal dismisses, and the connection with the stonemason realm is broken..._\n:yay: ticket marked as resolved by <@${user}>! if you have any further question please send it in a separate thread. stonemasons won't receive updates for messages here anymore!`,
     }),
     postMessage({
       channel: BACKEND_CHANNEL_ID,
