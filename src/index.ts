@@ -425,6 +425,19 @@ Bun.serve({
       handleSlashCommand(req.params.name, data) // intentionally not awaited
       return new Response()
     },
+    '/api/projects/:id': async (req) => {
+      const id = parseInt(req.params.id)
+      if (isNaN(id)) {
+        return Response.json({ error: 'invalid_params' }, 400)
+      }
+      try {
+        const project = await getProjectInfo(id)
+        return Response.json(project)
+      } catch (e) {
+        console.error('error fetching project', e)
+        return Response.json({ error: 'internal_error' }, 500)
+      }
+    },
   },
   port: PORT,
 })
