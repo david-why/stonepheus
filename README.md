@@ -6,7 +6,11 @@ Slack bot that handles ticketing in the [#ask-the-stonemasons channel](https://h
 
 Head over to [#ask-the-stonemasons](https://hackclub.slack.com/archives/C09GSTH65B7) and send a message to open a ticket. This will forward the message into a stonemason-only backend channel, where stonemasons can reply in the thread. They can choose to answer anonymously or to share their name. You can also reply in the the thread for stonemasons to see in the backend. It's basically a two-way bridge!
 
-Oh and also, there's a really simple API to get a project's basic info! You can use https://stonepheus.davidwhy.hackclub.app/api/projects/{id} without authentication.
+Other features:
+
+- There's a really simple API to get a Siege project's basic info! You can use https://stonepheus.davidwhy.hackclub.app/api/projects/{id} without authentication.
+- Stonepheus performs link previews through a Slack feature called "link unfurling". It shows the project's name, description, screenshot, links, and other details. Send a Siege project link in any channel to try it out!
+- When you ask a question in #ask-the-stonemasons, an AI will attempt to answer your question with the FAQ and Theme Info documents. It might make a mistake though, so wait for a stonemason to confirm!
 
 ## Setup instructions
 

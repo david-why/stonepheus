@@ -48,6 +48,7 @@ export async function askAI(query: string) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'User-Agent': 'stonepheus; contact=slack=U08CJCZ2Z9S',
     },
     body: JSON.stringify(payload),
   })
