@@ -45,7 +45,7 @@ async function handleEvent(event: SlackEvent) {
     console.log(event)
     const result: Record<string, { blocks: SlackBlock[] }> = {}
     for (const { url } of event.links) {
-      const match = /\/armory\/([0-9]+)/.exec(url)
+      const match = /\/(?:review\/projects|armory)\/([0-9]+)$/.exec(url)
       if (match) {
         const id = parseInt(match[1]!)
         const project = await getProjectInfo(id)
@@ -171,8 +171,7 @@ async function handleBackendReply(event: SlackMessageEvent) {
   const request = await getRequestByBackend(event.thread_ts)
   if (!request) return
   if (event.text && event.text.startsWith('\\')) return
-  const dbUser = await getUserBySlackId(event.user)
-  const isShown = dbUser?.shown ?? false
+  const isShown = await checkIsUserShown(event)
   const messageBlocks = event.blocks ?? [{ type: 'markdown', text: event.text }]
   if (isShown) {
     const user = await getUserInfo(event.user)
@@ -194,6 +193,13 @@ async function handleBackendReply(event: SlackMessageEvent) {
       ),
     })
   }
+}
+
+async function checkIsUserShown(event: SlackMessageEvent) {
+  if (event.text.startsWith('++')) return true
+  if (event.text.startsWith('--')) return false
+  const dbUser = await getUserBySlackId(event.user)
+  return dbUser?.shown ?? false
 }
 
 async function handleInteraction(interaction: SlackInteraction) {
