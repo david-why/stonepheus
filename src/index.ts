@@ -41,7 +41,6 @@ async function handleEvent(event: SlackEvent) {
       await handleBackendReply(event)
     }
   } else if (event.type === 'link_shared') {
-    if (!event.is_bot_user_member) return
     if (event.source === 'composer') return
     console.log(event)
     const result: Record<string, { blocks: SlackBlock[] }> = {}
