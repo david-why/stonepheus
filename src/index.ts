@@ -152,7 +152,7 @@ async function handleFrontendReply(event: SlackMessageEvent) {
     await postMessage({
       channel: FRONTEND_CHANNEL_ID,
       thread_ts: event.thread_ts,
-      markdown_text: `this ticket has been marked as resolved :${RESOLVED_EMOJI}:! please make a new ticket for stonemasons to see your message!`,
+      markdown_text: `stonemasons won't see messages here anymore because this ticket has been marked as resolved :${RESOLVED_EMOJI}:! please make a new ticket for stonemasons to see your message!`,
       ephemeral: true,
       user: event.user,
     })
