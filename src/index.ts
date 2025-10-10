@@ -172,7 +172,7 @@ async function handleBackendReply(event: SlackMessageEvent) {
   if (!request) return
   if (event.text && event.text.startsWith('\\')) return
   const isShown = await checkIsUserShown(event)
-  const messageBlocks = event.blocks ?? [{ type: 'markdown', text: event.text }]
+  const messageBlocks = getMessageBlocks(event)
   if (isShown) {
     const user = await getUserInfo(event.user)
     await postMessage({
@@ -200,6 +200,33 @@ async function checkIsUserShown(event: SlackMessageEvent) {
   if (event.text.startsWith('--')) return false
   const dbUser = await getUserBySlackId(event.user)
   return dbUser?.shown ?? false
+}
+
+function getMessageBlocks(event: SlackMessageEvent) {
+  event = structuredClone(event)
+  if (
+    event.blocks?.[0]?.type === 'rich_text' &&
+    event.blocks[0].elements[0]?.type === 'rich_text_section' &&
+    event.blocks[0].elements[0].elements[0]?.type === 'text' &&
+    event.blocks[0].elements[0].elements[0].text
+  ) {
+    event.blocks[0].elements[0].elements[0].text =
+      event.blocks[0].elements[0].elements[0].text.replace(/^(\+\+|--)/, '')
+  }
+  if (event.blocks?.[0]?.type === 'section' && event.blocks[0].text?.text) {
+    event.blocks[0].text.text = event.blocks[0].text.text.replace(
+      /^(\+\+|--)/,
+      ''
+    )
+  }
+  if (event.blocks?.[0]?.type === 'markdown' && event.blocks[0].text) {
+    event.blocks[0].text = event.blocks[0].text.replace(/^(\+\+|--)/, '')
+  }
+  return (
+    event.blocks ?? [
+      { type: 'markdown', text: event.text.replace(/^(\+\+|--)/, '') },
+    ]
+  )
 }
 
 async function handleInteraction(interaction: SlackInteraction) {
