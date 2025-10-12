@@ -380,28 +380,16 @@ async function postAIResponse(
         },
       },
       {
-        type: 'rich_text',
-        elements: [
-          {
-            type: 'rich_text_section',
-            elements: [
-              {
-                type: 'text',
-                text: 'Answer: ',
-                style: { bold: true },
-              },
-              {
-                type: 'text',
-                text: response.answer,
-              },
-            ],
-          },
-        ],
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `*Answer:* ${response.answer}`
+        }
       },
       {
         type: 'section',
         text: {
-          type: 'plain_text',
+          type: 'mrkdwn',
           text: response.explanation,
         },
       },

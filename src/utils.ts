@@ -36,7 +36,7 @@ export function getUserDisplayFields(
 }
 
 export function htmlToMarkdown(html: string) {
-  return turndown.turndown(html)
+  return turndown.turndown(html).replace(/#C[A-Z0-9]+/g, (match) => `<${match}>`)
 }
 
 export async function getFileBlocks(
