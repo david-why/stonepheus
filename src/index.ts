@@ -162,6 +162,11 @@ async function handleSlashCommand(
 }
 
 async function handleAICommand(event: SlackSlashCommandRequest) {
+  if (!ENABLE_AI) {
+    await respondEvent(event.response_url, {
+      text: `sorry, but ai isn't enabled right now :(`
+    })
+  }
   if (!event.text) {
     await respondEvent(event.response_url, {
       text: `_b... but you didn't give me a question to answer!_`,
