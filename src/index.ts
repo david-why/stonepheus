@@ -13,8 +13,8 @@ import {
   addReaction,
   chatUnfurl,
   getUserInfo,
+  openConversation,
   postMessage,
-  updateMessage,
 } from './slack'
 import { getUserDisplayFields } from './utils'
 
@@ -161,16 +161,53 @@ async function handleInteraction(interaction: SlackInteraction) {
       const request = await getRequestByTs(channel, ts)
       if (request) {
         await setRequestAssignedUserByTs(channel, ts, action.selected_user)
+        const {
+          channel: { id: dmChannel },
+        } = await openConversation({
+          users: action.selected_user,
+        })
         await postMessage({
-          channel: CHANNEL_IDS[channel]!,
-          thread_ts: request.backend_ts,
+          channel: dmChannel,
           blocks: [
             {
               type: 'section',
               text: {
                 type: 'mrkdwn',
-                text: `Ticket assigned to <@${action.selected_user}>`,
+                text: `Hey, a ticket in <#${channel}> was assigned to you. Take a look:`,
               },
+            },
+            {
+              type: 'rich_text',
+              elements: [
+                {
+                  type: 'rich_text_list',
+                  style: 'bullet',
+                  elements: [
+                    {
+                      type: 'rich_text_section',
+                      elements: [
+                        {
+                          type: 'link',
+                          url: `https://hackclub.slack.com/archives/${channel}/${ts}`,
+                          text: 'frontend',
+                        },
+                      ],
+                    },
+                    {
+                      type: 'rich_text_section',
+                      elements: [
+                        {
+                          type: 'link',
+                          url: `https://hackclub.slack.com/archives/${CHANNEL_IDS[
+                            channel
+                          ]!}/${request.backend_ts}`,
+                          text: 'backend',
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
             },
           ],
         })

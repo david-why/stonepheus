@@ -166,6 +166,38 @@ export async function updateMessage(parameters: UpdateMessageParams) {
   return data
 }
 
+interface OpenConversationParams {
+  channel?: string
+  users?: string
+}
+
+interface OpenConversationResponse {
+  ok: true
+  channel: {
+    id: string
+  }
+}
+
+export async function openConversation(params: OpenConversationParams) {
+  const body = new URLSearchParams()
+  if (params.channel) body.set('channel', params.channel)
+  if (params.users) body.set('users', params.users)
+  const res = await fetch(`https://slack.com/api/conversations.open`, {
+    method: 'POST',
+    body,
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: `Bearer ${SLACK_OAUTH_TOKEN}`,
+    },
+  })
+  const data = (await res.json()) as OpenConversationResponse | ErrorResponse
+  if (!data.ok) {
+    console.error(data)
+    throw new SlackError('conversations.open', data)
+  }
+  return data
+}
+
 interface AuthTestResponse {
   ok: true
   url: string

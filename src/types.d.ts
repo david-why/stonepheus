@@ -66,7 +66,16 @@ interface SlackRichTextSection {
   elements: SlackRichTextElement[]
 }
 
-type SlackRichTextObject = SlackRichTextSection
+interface SlackRichTextList {
+  type: 'rich_text_list'
+  style: 'bullet' | 'ordered'
+  elements: SlackRichTextSection[]
+  indent?: number
+  offset?: number
+  border?: number
+}
+
+type SlackRichTextObject = SlackRichTextSection | SlackRichTextList
 
 interface SlackRichTextTextElement {
   type: 'text'
