@@ -107,14 +107,17 @@ async function handleEvent(event: SlackEvent) {
 
 async function handleNewTicket(event: SlackMessageEvent) {
   const ts = event.ts
-  await Promise.all([createRequest({ ts }), postNewTicketResponse(event, ts)])
+  await Promise.all([
+    createRequest({ channel: event.channel, ts }),
+    postNewTicketResponse(event, ts),
+  ])
   if (ENABLE_AI) {
     await tryAIResponse(event)
   }
 }
 
 async function handleTicketReply(event: SlackMessageEvent) {
-  const request = await getRequestByTs(event.thread_ts)
+  const request = await getRequestByTs(event.channel, event.thread_ts)
   if (!request) {
     console.warn('message reply with unknown thread_ts', JSON.stringify(event))
     return
@@ -304,10 +307,10 @@ async function postAIResponse(
 }
 
 async function resolveTicket(channel: string, ts: string, user: string) {
-  const request = await getRequestByTs(ts)
+  const request = await getRequestByTs(channel, ts)
   if (!request || request.resolved) return
   await Promise.all([
-    setRequestResolvedByTs(ts, true),
+    setRequestResolvedByTs(channel, ts, true),
     postMessage({
       channel,
       thread_ts: ts,
