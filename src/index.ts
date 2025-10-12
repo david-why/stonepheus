@@ -2,25 +2,16 @@ import z from 'zod'
 import { askAI, type AIResponseType } from './ai'
 import {
   createRequest,
-  getRequestByBackend,
-  getRequestByFrontend,
-  getUserBySlackId,
-  setRequestResolvedByBackend,
-  setUserShown,
+  getRequestByTs,
+  setRequestResolvedByTs,
 } from './database'
 import { getEnv } from './env'
 import { getProjectInfo } from './scrape'
 import { getVerifiedData } from './signature'
-import {
-  addReaction,
-  chatUnfurl,
-  getConversationMembers,
-  getUserInfo,
-  postMessage,
-} from './slack'
-import { getFileBlocks, getUserDisplayFields } from './utils'
+import { addReaction, chatUnfurl, postMessage } from './slack'
 
-const { PORT, FRONTEND_CHANNEL_ID, BACKEND_CHANNEL_ID, SLACK_APP_ID } = getEnv()
+const { PORT, CHANNEL_IDS: _CHANNEL_IDS, SLACK_APP_ID } = getEnv()
+const CHANNEL_IDS = _CHANNEL_IDS.split(',').map((s) => s.trim())
 const { ENABLE_AI: _ENABLE_AI } = process.env
 const ENABLE_AI = _ENABLE_AI === 'true' || _ENABLE_AI === '1'
 
@@ -31,18 +22,13 @@ async function handleEvent(event: SlackEvent) {
     event.type === 'message' &&
     (!event.subtype || ['file_share'].includes(event.subtype))
   ) {
-    if (event.channel === FRONTEND_CHANNEL_ID && !event.thread_ts) {
+    if (CHANNEL_IDS.includes(event.channel) && !event.thread_ts) {
       await handleNewTicket(event)
     } else if (
-      event.channel === FRONTEND_CHANNEL_ID &&
+      CHANNEL_IDS.includes(event.channel) &&
       event.app_id !== SLACK_APP_ID
     ) {
-      await handleFrontendReply(event)
-    } else if (
-      event.channel === BACKEND_CHANNEL_ID &&
-      event.app_id !== SLACK_APP_ID
-    ) {
-      await handleBackendReply(event)
+      await handleTicketReply(event)
     }
   } else if (event.type === 'link_shared') {
     if (event.source === 'composer') return
@@ -120,136 +106,37 @@ async function handleEvent(event: SlackEvent) {
 }
 
 async function handleNewTicket(event: SlackMessageEvent) {
-  const frontendTs = event.ts
-  const ticketAuthor = await getUserInfo(event.user)
-  const messageBlocks = event.blocks ?? [{ type: 'markdown', text: event.text }]
-  const { ts: backendTs } = await postMessage({
-    channel: BACKEND_CHANNEL_ID,
-    ...getUserDisplayFields(ticketAuthor),
-    blocks: messageBlocks.concat(await getFileBlocks(event.files ?? [])),
-  })
-  await Promise.all([
-    createRequest({
-      frontend_ts: frontendTs,
-      backend_ts: backendTs,
-    }),
-    postNewTicketResponse(event, backendTs),
-    postNewTicketBackendResponse(event, backendTs),
-  ])
+  const ts = event.ts
+  await Promise.all([createRequest({ ts }), postNewTicketResponse(event, ts)])
   if (ENABLE_AI) {
-    await tryAIResponse(event, backendTs)
+    await tryAIResponse(event)
   }
 }
 
-async function handleFrontendReply(event: SlackMessageEvent) {
-  const [request, user] = await Promise.all([
-    getRequestByFrontend(event.thread_ts),
-    getUserInfo(event.user),
-  ])
+async function handleTicketReply(event: SlackMessageEvent) {
+  const request = await getRequestByTs(event.thread_ts)
   if (!request) {
     console.warn('message reply with unknown thread_ts', JSON.stringify(event))
     return
   }
-  if (request.resolved) {
-    await postMessage({
-      channel: FRONTEND_CHANNEL_ID,
-      thread_ts: event.thread_ts,
-      markdown_text: `stonemasons won't see messages here anymore because this ticket has been marked as resolved :${RESOLVED_EMOJI}:! please make a new ticket for stonemasons to see your message!`,
-      ephemeral: true,
-      user: event.user,
-    })
-    return
+  if (event.text && event.text.startsWith('?faq ')) {
+    const section = event.text.substring(5).trim()
+    if (section) {
+      await postMessage({
+        channel: event.channel,
+        thread_ts: event.thread_ts,
+        text: await getFAQSection(section),
+      })
+    }
   }
-  const messageBlocks = event.blocks ?? [{ type: 'markdown', text: event.text }]
-  await postMessage({
-    channel: BACKEND_CHANNEL_ID,
-    thread_ts: request.backend_ts,
-    ...getUserDisplayFields(user),
-    blocks: messageBlocks.concat(await getFileBlocks(event.files ?? [])),
-  })
-}
-
-async function handleBackendReply(event: SlackMessageEvent) {
-  const request = await getRequestByBackend(event.thread_ts)
-  if (!request) return
-  if (event.text && event.text.startsWith('\\')) return
-  const isShown = await checkIsUserShown(event)
-  const messageBlocks = await getMessageBlocks(event)
-  if (isShown) {
-    const user = await getUserInfo(event.user)
-    await postMessage({
-      channel: FRONTEND_CHANNEL_ID,
-      thread_ts: request.frontend_ts,
-      ...getUserDisplayFields(user),
-      blocks: messageBlocks.concat(
-        await getFileBlocks(event.files ?? [], true)
-      ),
-    })
-  } else {
-    await postMessage({
-      channel: FRONTEND_CHANNEL_ID,
-      thread_ts: request.frontend_ts,
-      blocks: messageBlocks.concat(
-        await getFileBlocks(event.files ?? [], true)
-      ),
-    })
-  }
-}
-
-async function checkIsUserShown(event: SlackMessageEvent) {
-  if (event.text.startsWith('++')) return true
-  if (event.text.startsWith('--')) return false
-  const dbUser = await getUserBySlackId(event.user)
-  return dbUser?.shown ?? true
-}
-
-async function getMessageBlocks(
-  event: SlackMessageEvent
-): Promise<SlackBlock[]> {
-  if (event.text && event.text.startsWith('?faq')) {
-    const section = event.text.substring(4).trim()
-    return [
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: await getFAQSection(section),
-        },
-      },
-    ]
-  }
-  event = structuredClone(event)
-  if (
-    event.blocks?.[0]?.type === 'rich_text' &&
-    event.blocks[0].elements[0]?.type === 'rich_text_section' &&
-    event.blocks[0].elements[0].elements[0]?.type === 'text' &&
-    event.blocks[0].elements[0].elements[0].text
-  ) {
-    event.blocks[0].elements[0].elements[0].text =
-      event.blocks[0].elements[0].elements[0].text.replace(/^(\+\+|--)/, '')
-  }
-  if (event.blocks?.[0]?.type === 'section' && event.blocks[0].text?.text) {
-    event.blocks[0].text.text = event.blocks[0].text.text.replace(
-      /^(\+\+|--)/,
-      ''
-    )
-  }
-  if (event.blocks?.[0]?.type === 'markdown' && event.blocks[0].text) {
-    event.blocks[0].text = event.blocks[0].text.replace(/^(\+\+|--)/, '')
-  }
-  return (
-    event.blocks ?? [
-      { type: 'markdown', text: event.text.replace(/^(\+\+|--)/, '') },
-    ]
-  )
 }
 
 async function handleInteraction(interaction: SlackInteraction) {
   if (interaction.type === 'block_actions') {
     const action = interaction.actions[0]
     if (action?.action_id === 'resolve_ticket') {
-      const backendTs = action.value
-      await resolveTicket(backendTs, interaction.user.id)
+      const ts = action.value
+      await resolveTicket(interaction.channel.id, ts, interaction.user.id)
     }
   }
 }
@@ -259,12 +146,6 @@ async function handleSlashCommand(
   event: SlackSlashCommandRequest
 ) {
   switch (name) {
-    case 'show':
-      await handleShowCommand(event)
-      break
-    case 'hide':
-      await handleHideCommand(event)
-      break
     case 'ai':
       await handleAICommand(event)
       break
@@ -275,26 +156,6 @@ async function handleSlashCommand(
       await respondEvent(event.response_url, { text: 'invalid command...?' })
       break
   }
-}
-
-async function handleShowCommand(event: SlackSlashCommandRequest) {
-  if (!(await checkIsStonemason(event.user_id, event.response_url))) return
-  await Promise.all([
-    setUserShown(event.user_id, true),
-    respondEvent(event.response_url, {
-      text: `:white_check_mark: your name will now be shown in <#${FRONTEND_CHANNEL_ID}>!`,
-    }),
-  ])
-}
-
-async function handleHideCommand(event: SlackSlashCommandRequest) {
-  if (!(await checkIsStonemason(event.user_id, event.response_url))) return
-  await Promise.all([
-    setUserShown(event.user_id, false),
-    respondEvent(event.response_url, {
-      text: `:white_check_mark: your name will now be hidden in <#${FRONTEND_CHANNEL_ID}>!`,
-    }),
-  ])
 }
 
 async function handleAICommand(event: SlackSlashCommandRequest) {
@@ -343,10 +204,7 @@ const FaqSchema = z.union([
 
 // util functions
 
-async function postNewTicketResponse(
-  event: SlackMessageEvent,
-  backendTs: string
-) {
+async function postNewTicketResponse(event: SlackMessageEvent, ts: string) {
   await postMessage({
     channel: event.channel,
     thread_ts: event.ts,
@@ -382,21 +240,12 @@ async function postNewTicketResponse(
         ],
       },
       {
-        type: 'context',
-        elements: [
-          {
-            type: 'mrkdwn',
-            text: `<https://hackclub.slack.com/archives/${BACKEND_CHANNEL_ID}/${backendTs}|backend> (for stonemasons)`,
-          },
-        ],
-      },
-      {
         type: 'actions',
         elements: [
           {
             type: 'button',
             action_id: 'resolve_ticket',
-            value: backendTs,
+            value: ts,
             text: { type: 'plain_text', text: 'close portal' },
             style: 'primary',
           },
@@ -406,25 +255,17 @@ async function postNewTicketResponse(
   })
 }
 
-async function tryAIResponse(event: SlackMessageEvent, backendTs: string) {
+async function tryAIResponse(event: SlackMessageEvent) {
   if (!event.text) return
   const response = await askAI(event.text)
   console.log(response)
   if (!response.ok) return
-  await Promise.all([
-    postAIResponse(
-      response,
-      '_:magic_wand: as you anxiously await a stonemason, you see the bright light again! this time, a robotic voice speaks to you..._\n_NOTE: please do not trust the AI response. it might be inaccurate._',
-      FRONTEND_CHANNEL_ID,
-      event.ts
-    ),
-    postAIResponse(
-      response,
-      'this is a response generated by ai:',
-      BACKEND_CHANNEL_ID,
-      backendTs
-    ),
-  ])
+  await postAIResponse(
+    response,
+    '_:magic_wand: as you anxiously await a stonemason, you see the bright light again! this time, a robotic voice speaks to you..._\n_NOTE: please do not trust the AI response. it might be inaccurate._',
+    event.channel,
+    event.ts
+  )
 }
 
 async function postAIResponse(
@@ -462,63 +303,20 @@ async function postAIResponse(
   })
 }
 
-async function postNewTicketBackendResponse(
-  event: SlackMessageEvent,
-  backendTs: string
-) {
-  await postMessage({
-    channel: BACKEND_CHANNEL_ID,
-    thread_ts: backendTs,
-    blocks: [
-      {
-        type: 'context',
-        elements: [
-          {
-            type: 'mrkdwn',
-            text: `<https://hackclub.slack.com/archives/${FRONTEND_CHANNEL_ID}/${event.ts}|frontend>`,
-          },
-        ],
-      },
-      {
-        type: 'actions',
-        elements: [
-          {
-            type: 'button',
-            action_id: 'resolve_ticket',
-            value: backendTs,
-            text: { type: 'plain_text', text: 'close ticket' },
-            style: 'primary',
-          },
-        ],
-      },
-    ],
-  })
-}
-
-async function resolveTicket(backendTs: string, user: string) {
-  const request = await getRequestByBackend(backendTs)
+async function resolveTicket(channel: string, ts: string, user: string) {
+  const request = await getRequestByTs(ts)
   if (!request || request.resolved) return
   await Promise.all([
-    setRequestResolvedByBackend(backendTs, true),
+    setRequestResolvedByTs(ts, true),
     postMessage({
-      channel: FRONTEND_CHANNEL_ID,
-      thread_ts: request.frontend_ts,
+      channel,
+      thread_ts: ts,
       markdown_text: `_:magic_wand: as <@${user}> waves a hand, the portal dismisses, and the connection with the stonemason realm is broken..._\n:yay: ticket marked as resolved by <@${user}>! if you have any further question please send it in a separate thread. stonemasons won't receive updates for messages here anymore!`,
     }),
-    postMessage({
-      channel: BACKEND_CHANNEL_ID,
-      thread_ts: request.backend_ts,
-      markdown_text: `ticket marked as resolved by <@${user}>`,
-    }),
     addReaction({
-      channel: FRONTEND_CHANNEL_ID,
+      channel,
       name: RESOLVED_EMOJI,
-      timestamp: request.frontend_ts,
-    }),
-    addReaction({
-      channel: BACKEND_CHANNEL_ID,
-      name: RESOLVED_EMOJI,
-      timestamp: request.backend_ts,
+      timestamp: ts,
     }),
   ])
 }
@@ -534,18 +332,6 @@ async function respondEvent(
     },
     body: JSON.stringify(body),
   })
-}
-
-async function checkIsStonemason(user: string, responseUrl: string) {
-  const members = await getConversationMembers({
-    channel: BACKEND_CHANNEL_ID,
-    limit: 999,
-  })
-  const isStonemason = members.members.includes(user)
-  if (!isStonemason) {
-    await respondEvent(responseUrl, { text: 'you are not a stonemason :(' })
-  }
-  return isStonemason
 }
 
 async function getFAQSection(query: string) {

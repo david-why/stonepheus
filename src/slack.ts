@@ -66,6 +66,7 @@ export async function getUserInfo(userId: string) {
 interface PostMessageParams {
   channel: string
   markdown_text?: string
+  text?: string
   thread_ts?: string
   blocks?: SlackBlock[]
   ephemeral?: boolean
