@@ -4,6 +4,7 @@ import z from 'zod'
 const AIResponseSchema = z.union([
   z.object({
     ok: z.literal(false),
+    reason: z.string(),
   }),
   z.object({
     ok: z.literal(true),
@@ -14,14 +15,20 @@ const AIResponseSchema = z.union([
 
 export type AIResponseType = z.infer<typeof AIResponseSchema>
 
-export async function askAI(query: string) {
+export async function askAI<
+  T extends z.core.$ZodType = typeof AIResponseSchema
+>(
+  query: string,
+  prompt: string = PROMPT,
+  schema: T = AIResponseSchema as unknown as T
+) {
   const [faq, theme] = await Promise.all([getFAQ(), getThemeCanvas()])
   const payload = {
     model: 'openai/gpt-oss-120b',
     messages: [
       {
         role: 'system',
-        content: PROMPT,
+        content: prompt,
       },
       {
         role: 'user',
@@ -40,7 +47,7 @@ export async function askAI(query: string) {
       type: 'json_schema',
       json_schema: {
         name: 'query_result',
-        schema: z.toJSONSchema(AIResponseSchema),
+        schema: z.toJSONSchema(schema),
       },
     },
   }
@@ -62,7 +69,7 @@ export async function askAI(query: string) {
   if (!content) {
     throw new Error(`No message returned by AI: ${data}`)
   }
-  return JSON.parse(content) as AIResponseType
+  return JSON.parse(content) as z.infer<T>
 }
 
 const PROMPT = `\

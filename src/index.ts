@@ -1,3 +1,4 @@
+import z from 'zod'
 import { askAI, type AIResponseType } from './ai'
 import {
   createRequest,
@@ -173,7 +174,7 @@ async function handleBackendReply(event: SlackMessageEvent) {
   if (!request) return
   if (event.text && event.text.startsWith('\\')) return
   const isShown = await checkIsUserShown(event)
-  const messageBlocks = getMessageBlocks(event)
+  const messageBlocks = await getMessageBlocks(event)
   if (isShown) {
     const user = await getUserInfo(event.user)
     await postMessage({
@@ -202,7 +203,21 @@ async function checkIsUserShown(event: SlackMessageEvent) {
   return dbUser?.shown ?? true
 }
 
-function getMessageBlocks(event: SlackMessageEvent) {
+async function getMessageBlocks(
+  event: SlackMessageEvent
+): Promise<SlackBlock[]> {
+  if (event.text && event.text.startsWith('?faq')) {
+    const section = event.text.substring(4).trim()
+    return [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: await getFAQSection(section),
+        },
+      },
+    ]
+  }
   event = structuredClone(event)
   if (
     event.blocks?.[0]?.type === 'rich_text' &&
@@ -250,6 +265,12 @@ async function handleSlashCommand(
     case 'hide':
       await handleHideCommand(event)
       break
+    case 'ai':
+      await handleAICommand(event)
+      break
+    case 'faq':
+      await handleFAQCommand(event)
+      break
     default:
       await respondEvent(event.response_url, { text: 'invalid command...?' })
       break
@@ -275,6 +296,50 @@ async function handleHideCommand(event: SlackSlashCommandRequest) {
     }),
   ])
 }
+
+async function handleAICommand(event: SlackSlashCommandRequest) {
+  if (!event.text) {
+    await respondEvent(event.response_url, {
+      text: `_b... but you didn't give me a question to answer!_`,
+    })
+    return
+  }
+  const response = await askAI(event.text)
+  const text = response.ok
+    ? `_:magic_wand: as you whisper your query into the magic portal, it turned bright, and a voice responds to you..._\n*Answer:* ${response.answer}\n\n${response.explanation}`
+    : `_:magic_wand: as you whisper your query into the magic portal, it turned misty, as if the higher being is confused about your question..._\nI cannot answer because: ${response.reason}`
+  await respondEvent(event.response_url, { text })
+}
+
+async function handleFAQCommand(event: SlackSlashCommandRequest) {
+  if (!event.text) {
+    await respondEvent(event.response_url, {
+      text: `_b... but you didn't give me a section to search for!_`,
+    })
+    return
+  }
+  const text = await getFAQSection(event.text)
+  await respondEvent(event.response_url, { text })
+}
+
+const FAQ_PROMPT = `\
+You are a section finder assistant who helps the user find a section of the "FAQ knowledge base" provided below. The user will ask you for a single section of the FAQ, and you should answer the text in that section *verbatim* (do not change typos, punctuation, or anything else).
+
+Your response should be a JSON object in the following structure:
+{
+  found: true,  // or false if the section is not found
+  text: "The literal, verbatim text of that section in the FAQ, or null if found is false"
+}`
+
+const FaqSchema = z.union([
+  z.object({
+    found: z.literal(false),
+  }),
+  z.object({
+    found: z.literal(true),
+    text: z.string(),
+  }),
+])
 
 // util functions
 
@@ -383,8 +448,8 @@ async function postAIResponse(
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `*Answer:* ${response.answer}`
-        }
+          text: `*Answer:* ${response.answer}`,
+        },
       },
       {
         type: 'section',
@@ -481,6 +546,14 @@ async function checkIsStonemason(user: string, responseUrl: string) {
     await respondEvent(responseUrl, { text: 'you are not a stonemason :(' })
   }
   return isStonemason
+}
+
+async function getFAQSection(query: string) {
+  const response = await askAI(query, FAQ_PROMPT, FaqSchema)
+  console.log(response)
+  return response.found
+    ? `_:magic_wand: as you ask the librarian automaton, it raises a hand towards a distant bookshelf, and a volume makes its way to you..._\n\n${response.text}`
+    : `the section you asked for was not found... :(`
 }
 
 Bun.serve({

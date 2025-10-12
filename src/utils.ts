@@ -5,7 +5,11 @@ import Turndown from 'turndown'
 const { SLACK_OAUTH_TOKEN } = getEnv()
 
 const turndown = new Turndown({
+  headingStyle: 'atx',
   codeBlockStyle: 'fenced',
+  strongDelimiter: '*' as unknown as '**', // :/
+  emDelimiter: '_',
+  bulletListMarker: '-',
 })
 turndown.addRule('strikethrough', {
   filter: ['del', 's', 'strike'],
@@ -36,7 +40,16 @@ export function getUserDisplayFields(
 }
 
 export function htmlToMarkdown(html: string) {
-  return turndown.turndown(html).replace(/#C[A-Z0-9]+/g, (match) => `<${match}>`)
+  return (
+    turndown
+      .turndown(html)
+      .replace(/#C[A-Z0-9]+/g, (match) => `<${match}>`)
+      // ts regex is ai cuz how tf am i supposed to write that myself
+      .replace(
+        /!\[[^\]]+\]\(\s*https:\/\/slack-imgs\.com\/[^)]*%2F(emoji\.slack-edge\.com[^)]*|a\.slack-edge\.com%2Fproduction-standard-emoji-assets[^)]*)\s*\)/gi,
+        ''
+      )
+  )
 }
 
 export async function getFileBlocks(
