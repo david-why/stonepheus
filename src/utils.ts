@@ -1,7 +1,16 @@
 import { getEnv } from './env'
 import { getFileInfo, type getUserInfo, uploadFile } from './slack'
+import Turndown from 'turndown'
 
 const { SLACK_OAUTH_TOKEN } = getEnv()
+
+const turndown = new Turndown({
+  codeBlockStyle: 'fenced',
+})
+turndown.addRule('strikethrough', {
+  filter: ['del', 's', 'strike'],
+  replacement: (content) => '~' + content + '~',
+})
 
 export function select<T, K extends keyof T>(
   obj: T,
@@ -24,6 +33,10 @@ export function getUserDisplayFields(
       user.profile.image_1024 ||
       user.profile.image_512,
   }
+}
+
+export function htmlToMarkdown(html: string) {
+  return turndown.turndown(html)
 }
 
 export async function getFileBlocks(

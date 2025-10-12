@@ -1,6 +1,6 @@
 import { getEnv } from './env'
 import { getFileInfo } from './slack'
-import { parse as parseHTML } from 'node-html-parser'
+import { htmlToMarkdown } from './utils'
 
 const { SLACK_OAUTH_TOKEN } = getEnv()
 
@@ -33,7 +33,7 @@ async function getCanvasInner(id: string) {
     },
   }).then((r) => r.text())
 
-  const content = parseHTML(html).textContent
+  const content = htmlToMarkdown(html)
   canvasCache[id] = { content, expires: new Date(Date.now() + 10 * 60 * 1000) }
   return content
 }
