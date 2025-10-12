@@ -118,6 +118,54 @@ export async function postMessage(parameters: PostMessageParams) {
   return data
 }
 
+interface UpdateMessageParams {
+  channel: string
+  ts: string
+  markdown_text?: string
+  text?: string
+  thread_ts?: string
+  blocks?: SlackBlock[]
+  icon_url?: string
+  username?: string
+}
+
+interface UpdateMessageResponse {
+  ok: true
+  channel: string
+  ts: string
+}
+
+export async function updateMessage(parameters: UpdateMessageParams) {
+  const stringifiedParams = {
+    ...parameters,
+    blocks: parameters.blocks ? JSON.stringify(parameters.blocks) : undefined,
+  }
+  for (const key in stringifiedParams) {
+    if (
+      stringifiedParams[key as keyof typeof stringifiedParams] === undefined
+    ) {
+      delete stringifiedParams[key as keyof typeof stringifiedParams]
+    }
+  }
+  const body = new URLSearchParams(
+    stringifiedParams as Record<string, string>
+  ).toString()
+  const res = await fetch(`https://slack.com/api/chat.update`, {
+    method: 'POST',
+    body,
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: `Bearer ${SLACK_OAUTH_TOKEN}`,
+    },
+  })
+  const data = (await res.json()) as UpdateMessageResponse | ErrorResponse
+  if (!data.ok) {
+    console.error(data)
+    throw new SlackError('chat.update', data)
+  }
+  return data
+}
+
 interface AuthTestResponse {
   ok: true
   url: string

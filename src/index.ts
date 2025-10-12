@@ -3,12 +3,19 @@ import { askAI, type AIResponseType } from './ai'
 import {
   createRequest,
   getRequestByTs,
+  setRequestAssignedUserByTs,
   setRequestResolvedByTs,
 } from './database'
 import { getEnv } from './env'
 import { getProjectInfo } from './scrape'
 import { getVerifiedData } from './signature'
-import { addReaction, chatUnfurl, getUserInfo, postMessage } from './slack'
+import {
+  addReaction,
+  chatUnfurl,
+  getUserInfo,
+  postMessage,
+  updateMessage,
+} from './slack'
 import { getUserDisplayFields } from './utils'
 
 const { PORT, CHANNEL_IDS: _CHANNEL_IDS, SLACK_APP_ID } = getEnv()
@@ -142,6 +149,32 @@ async function handleInteraction(interaction: SlackInteraction) {
     } else if (action?.action_id === 'resolve_ticket_backend') {
       const [channel, ts] = JSON.parse(action.value) as [string, string]
       await resolveTicket(channel, ts, interaction.user.id)
+    } else if (
+      action?.action_id.startsWith('assign_user_backend') &&
+      action.selected_user
+    ) {
+      const [, channel, ts] = action.action_id.split('::') as [
+        string,
+        string,
+        string
+      ]
+      const request = await getRequestByTs(channel, ts)
+      if (request) {
+        await setRequestAssignedUserByTs(channel, ts, action.selected_user)
+        await postMessage({
+          channel: CHANNEL_IDS[channel]!,
+          thread_ts: request.backend_ts,
+          blocks: [
+            {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: `Ticket assigned to <@${action.selected_user}>`,
+              },
+            },
+          ],
+        })
+      }
     }
   }
 }
@@ -297,6 +330,11 @@ async function postNewTicketBackend(event: SlackMessageEvent) {
             value: JSON.stringify([event.channel, event.ts]),
             text: { type: 'plain_text', text: 'close ticket' },
             style: 'primary',
+          },
+          {
+            type: 'users_select',
+            action_id: `assign_user_backend::${event.channel}::${event.ts}`,
+            placeholder: { type: 'plain_text', text: 'assign user (pings)' },
           },
         ],
       },

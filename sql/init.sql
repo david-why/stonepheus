@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS requests (
   channel TEXT NOT NULL,
   ts TEXT NOT NULL,
   backend_ts TEXT NOT NULL UNIQUE,
+  assigned_user TEXT,
   resolved BOOLEAN NOT NULL DEFAULT FALSE,
   UNIQUE (channel, ts)
 );

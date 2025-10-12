@@ -6,6 +6,7 @@ export interface StonepheusRequest {
   channel: string
   ts: string
   backend_ts: string
+  assigned_user: string | null
   resolved: boolean
 }
 
@@ -26,7 +27,7 @@ export async function getRequestByTs(
 }
 
 export async function createRequest(
-  request: Omit<StonepheusRequest, 'id' | 'resolved'>
+  request: Omit<StonepheusRequest, 'id' | 'resolved' | 'assigned_user'>
 ) {
   const data: typeof request = select(request, 'channel', 'ts', 'backend_ts')
   await sql`INSERT INTO requests ${sql(data)}`
@@ -38,4 +39,12 @@ export async function setRequestResolvedByTs(
   resolved: boolean = true
 ) {
   await sql`UPDATE requests SET resolved = ${resolved} WHERE channel = ${channel} AND ts = ${ts}`
+}
+
+export async function setRequestAssignedUserByTs(
+  channel: string,
+  ts: string,
+  assignedUser: string | null
+) {
+  await sql`UPDATE requests SET assigned_user = ${assignedUser} WHERE channel = ${channel} AND ts = ${ts}`
 }

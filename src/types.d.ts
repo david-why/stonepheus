@@ -263,6 +263,7 @@ interface SlackBlockActionsInteraction {
   actions: {
     action_id: string
     value: string
+    selected_user?: string
     // ...
   }[]
   // ...
