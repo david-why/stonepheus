@@ -29,6 +29,15 @@ interface SlackButtonElement {
   accessibility_label?: string
 }
 
+interface SlackUsersSelectElement {
+  type: 'users_select'
+  action_id?: string
+  initial_user?: string
+  // confirm?: SlackConfirmObject
+  focus_on_load?: boolean
+  placeholder?: SlackTextObjectPlainText
+}
+
 interface SlackImageElement {
   type: 'image'
   alt_text: string
@@ -36,7 +45,7 @@ interface SlackImageElement {
   // TODO: support slack_file
 }
 
-type SlackBlockInteractiveElement = SlackButtonElement
+type SlackBlockInteractiveElement = SlackButtonElement | SlackUsersSelectElement
 
 // Blocks
 

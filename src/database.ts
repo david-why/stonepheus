@@ -5,6 +5,7 @@ export interface StonepheusRequest {
   id: number
   channel: string
   ts: string
+  backend_ts: string
   resolved: boolean
 }
 
@@ -27,7 +28,7 @@ export async function getRequestByTs(
 export async function createRequest(
   request: Omit<StonepheusRequest, 'id' | 'resolved'>
 ) {
-  const data: typeof request = select(request, 'channel', 'ts')
+  const data: typeof request = select(request, 'channel', 'ts', 'backend_ts')
   await sql`INSERT INTO requests ${sql(data)}`
 }
 

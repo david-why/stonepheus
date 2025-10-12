@@ -105,10 +105,10 @@ async function handleEvent(event: SlackEvent) {
 
 async function handleNewTicket(event: SlackMessageEvent) {
   const ts = event.ts
+  const backendTs = await postNewTicketBackend(event)
   await Promise.all([
-    createRequest({ channel: event.channel, ts }),
+    createRequest({ channel: event.channel, ts, backend_ts: backendTs }),
     postNewTicketResponse(event),
-    postNewTicketBackend(event),
   ])
   if (ENABLE_AI) {
     await tryAIResponse(event)
@@ -275,10 +275,19 @@ async function postNewTicketBackend(event: SlackMessageEvent) {
     blocks,
     ...getUserDisplayFields(user),
   })
-  await postMessage({
+  postMessage({
     channel: msg.channel,
     thread_ts: msg.ts,
     blocks: [
+      {
+        type: 'context',
+        elements: [
+          {
+            type: 'mrkdwn',
+            text: `<https://hackclub.slack.com/archives/${event.channel}/${event.ts}|frontend>`,
+          },
+        ],
+      },
       {
         type: 'actions',
         elements: [
@@ -291,15 +300,9 @@ async function postNewTicketBackend(event: SlackMessageEvent) {
           },
         ],
       },
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `<https://hackclub.slack.com/archives/${event.channel}/${event.ts}|jump to frontend>`,
-        },
-      },
     ],
   })
+  return msg.ts
 }
 
 async function tryAIResponse(event: SlackMessageEvent) {
@@ -364,6 +367,11 @@ async function resolveTicket(channel: string, ts: string, user: string) {
       channel,
       name: RESOLVED_EMOJI,
       timestamp: ts,
+    }),
+    addReaction({
+      channel: CHANNEL_IDS[channel]!,
+      name: RESOLVED_EMOJI,
+      timestamp: request.backend_ts,
     }),
   ])
 }
