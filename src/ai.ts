@@ -84,5 +84,4 @@ Your answer should be a single JSON object in one of the following forms:
 {
   "ok": false,  // if you are even slightly unsure of the answer
   "reason": "A reason why you are unsure or the question cannot be answered"
-}
-`
+}`

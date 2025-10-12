@@ -8,10 +8,11 @@ import {
 import { getEnv } from './env'
 import { getProjectInfo } from './scrape'
 import { getVerifiedData } from './signature'
-import { addReaction, chatUnfurl, postMessage } from './slack'
+import { addReaction, chatUnfurl, getUserInfo, postMessage } from './slack'
+import { getUserDisplayFields } from './utils'
 
 const { PORT, CHANNEL_IDS: _CHANNEL_IDS, SLACK_APP_ID } = getEnv()
-const CHANNEL_IDS = _CHANNEL_IDS.split(',').map((s) => s.trim())
+const CHANNEL_IDS = JSON.parse(_CHANNEL_IDS) as Record<string, string>
 const { ENABLE_AI: _ENABLE_AI } = process.env
 const ENABLE_AI = _ENABLE_AI === 'true' || _ENABLE_AI === '1'
 
@@ -22,12 +23,9 @@ async function handleEvent(event: SlackEvent) {
     event.type === 'message' &&
     (!event.subtype || ['file_share'].includes(event.subtype))
   ) {
-    if (CHANNEL_IDS.includes(event.channel) && !event.thread_ts) {
+    if (event.channel in CHANNEL_IDS && !event.thread_ts) {
       await handleNewTicket(event)
-    } else if (
-      CHANNEL_IDS.includes(event.channel) &&
-      event.app_id !== SLACK_APP_ID
-    ) {
+    } else if (event.channel in CHANNEL_IDS && event.app_id !== SLACK_APP_ID) {
       await handleTicketReply(event)
     }
   } else if (event.type === 'link_shared') {
@@ -109,7 +107,8 @@ async function handleNewTicket(event: SlackMessageEvent) {
   const ts = event.ts
   await Promise.all([
     createRequest({ channel: event.channel, ts }),
-    postNewTicketResponse(event, ts),
+    postNewTicketResponse(event),
+    postNewTicketBackend(event),
   ])
   if (ENABLE_AI) {
     await tryAIResponse(event)
@@ -140,6 +139,9 @@ async function handleInteraction(interaction: SlackInteraction) {
     if (action?.action_id === 'resolve_ticket') {
       const ts = action.value
       await resolveTicket(interaction.channel.id, ts, interaction.user.id)
+    } else if (action?.action_id === 'resolve_ticket_backend') {
+      const [channel, ts] = JSON.parse(action.value) as [string, string]
+      await resolveTicket(channel, ts, interaction.user.id)
     }
   }
 }
@@ -164,7 +166,7 @@ async function handleSlashCommand(
 async function handleAICommand(event: SlackSlashCommandRequest) {
   if (!ENABLE_AI) {
     await respondEvent(event.response_url, {
-      text: `sorry, but ai isn't enabled right now :(`
+      text: `sorry, but ai isn't enabled right now :(`,
     })
   }
   if (!event.text) {
@@ -212,7 +214,7 @@ const FaqSchema = z.union([
 
 // util functions
 
-async function postNewTicketResponse(event: SlackMessageEvent, ts: string) {
+async function postNewTicketResponse(event: SlackMessageEvent) {
   await postMessage({
     channel: event.channel,
     thread_ts: event.ts,
@@ -253,11 +255,48 @@ async function postNewTicketResponse(event: SlackMessageEvent, ts: string) {
           {
             type: 'button',
             action_id: 'resolve_ticket',
-            value: ts,
+            value: event.ts,
             text: { type: 'plain_text', text: 'close portal' },
             style: 'primary',
           },
         ],
+      },
+    ],
+  })
+}
+
+async function postNewTicketBackend(event: SlackMessageEvent) {
+  const blocks = event.blocks ?? [
+    { type: 'section', text: { type: 'mrkdwn', text: event.text } },
+  ]
+  const user = await getUserInfo(event.user)
+  const msg = await postMessage({
+    channel: CHANNEL_IDS[event.channel]!,
+    blocks,
+    ...getUserDisplayFields(user),
+  })
+  await postMessage({
+    channel: msg.channel,
+    thread_ts: msg.ts,
+    blocks: [
+      {
+        type: 'actions',
+        elements: [
+          {
+            type: 'button',
+            action_id: 'resolve_ticket_backend',
+            value: JSON.stringify([event.channel, event.ts]),
+            text: { type: 'plain_text', text: 'close ticket' },
+            style: 'primary',
+          },
+        ],
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `<https://hackclub.slack.com/archives/${event.channel}/${event.ts}|jump to frontend>`,
+        },
       },
     ],
   })
