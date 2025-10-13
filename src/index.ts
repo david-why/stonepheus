@@ -371,7 +371,7 @@ async function postNewTicketBackend(event: SlackMessageEvent) {
           {
             type: 'users_select',
             action_id: `assign_user_backend::${event.channel}::${event.ts}`,
-            placeholder: { type: 'plain_text', text: 'assign user (pings)' },
+            placeholder: { type: 'plain_text', text: 'assign (sends dm)' },
           },
         ],
       },
