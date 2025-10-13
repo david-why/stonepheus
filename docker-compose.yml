@@ -5,15 +5,15 @@ services:
     image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: stopheus
-      POSTGRES_PASSWORD: stopheus_password
-      POSTGRES_DB: stopheus_db
+      POSTGRES_USER: stonepheus
+      POSTGRES_PASSWORD: stonepheus_password
+      POSTGRES_DB: stonepheus_db
     volumes:
       - db-data:/var/lib/postgresql/data
       # Mount the init SQL so Postgres runs it on first initialization
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
-      - stopheus-net
+      - stonepheus-net
 
   app:
     build:
@@ -25,17 +25,17 @@ services:
       - .env.local
     environment:
       # Compose will merge env_file and these; override/add as needed
-      POSTGRES_URL: "postgres://stopheus:stopheus_password@db:5432/stopheus_db"
+      POSTGRES_URL: "postgres://stonepheus:stonepheus_password@db:5432/stonepheus_db"
     ports:
       - "48492:48492"
     restart: unless-stopped
     networks:
-      - stopheus-net
+      - stonepheus-net
     command: ["bun", "prod"]
 
 volumes:
   db-data:
 
 networks:
-  stopheus-net:
+  stonepheus-net:
     driver: bridge
