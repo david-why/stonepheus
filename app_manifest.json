@@ -1,0 +1,81 @@
+{
+  "display_information": {
+    "name": "stonepheus"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "stonepheus",
+      "always_online": true
+    },
+    "slash_commands": [
+      {
+        "command": "/stonemason-show",
+        "url": "https://stonepheus.davidwhy.hackclub.app/slack/command/show",
+        "description": "[For stonemasons] Deanonymize yourself for #ask-the-stonemasons replies",
+        "should_escape": false
+      },
+      {
+        "command": "/stonemason-hide",
+        "url": "https://stonepheus.davidwhy.hackclub.app/slack/command/hide",
+        "description": "[For stonemasons] Become anonymous in #ask-the-stonemasons",
+        "should_escape": false
+      },
+      {
+        "command": "/siege-faq",
+        "url": "https://stonepheus.davidwhy.hackclub.app/slack/command/faq",
+        "description": "Conjures a section from the Siege FAQ",
+        "usage_hint": "{section-name}",
+        "should_escape": false
+      },
+      {
+        "command": "/siege-query",
+        "url": "https://stonepheus.davidwhy.hackclub.app/slack/command/ai",
+        "description": "Asks a mysterious being about Siege...",
+        "usage_hint": "{question}",
+        "should_escape": false
+      }
+    ],
+    "unfurl_domains": ["siege.hackclub.com"]
+  },
+  "oauth_config": {
+    "scopes": {
+      "user": [],
+      "bot": [
+        "app_mentions:read",
+        "channels:history",
+        "channels:read",
+        "chat:write",
+        "chat:write.customize",
+        "commands",
+        "files:read",
+        "files:write",
+        "groups:history",
+        "groups:read",
+        "links:read",
+        "links:write",
+        "reactions:read",
+        "reactions:write",
+        "users:read",
+        "im:write"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "request_url": "https://stonepheus.davidwhy.hackclub.app/slack/events-endpoint",
+      "bot_events": [
+        "app_mention",
+        "link_shared",
+        "message.channels",
+        "message.groups"
+      ]
+    },
+    "interactivity": {
+      "is_enabled": true,
+      "request_url": "https://stonepheus.davidwhy.hackclub.app/slack/interactivity-endpoint"
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  }
+}

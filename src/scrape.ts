@@ -1,9 +1,11 @@
-import { getEnv } from './env'
 import { parse as parseHTML } from 'node-html-parser'
 
-const { SIEGE_SESSION } = getEnv()
+const { SIEGE_SESSION } = process.env
 
 export async function getProjectInfo(id: number) {
+  if (!SIEGE_SESSION) {
+    return null
+  }
   const res = await fetch(`https://siege.hackclub.com/armory/${id}`, {
     headers: {
       Cookie: `_siege_session=${SIEGE_SESSION}`,
