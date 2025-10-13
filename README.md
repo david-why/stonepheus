@@ -18,6 +18,8 @@ Other features:
 2. Copy the `.env.example` file as `.env.local` and edit the values as necessary.
 3. Run `bun prod` to start the server.
 
+Alternatively, run the Dockerfile. You should know how to do that (because I don't :p)
+
 ## Technical details
 
 Slack bots, unlike Discord bots, use webhooks instead of WebSocket connections by default. (Both can be configured to use the other though, but Discord only supports message events over WebSocket AFAIK.) So there are three endpoints:
@@ -27,3 +29,7 @@ Slack bots, unlike Discord bots, use webhooks instead of WebSocket connections b
 - `/slack/command/{name}` which handles slash commands (for stonemasons to choose anonymous or not)
 
 The webhook is hosted on [Nest](https://hackclub.app) at https://stonepheus.davidwhy.hackclub.app (there is no home page though so it would just be 404 if you tried to open that).
+
+## AI disclaimer
+
+AI was not used at all for most of this project, except for the `Dockerfile` (idk how to do that) and a single regular expression in `src/utils.ts` (because how does a human being write a regex correctly).
