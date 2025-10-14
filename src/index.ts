@@ -19,7 +19,14 @@ import {
 import { getUserDisplayFields } from './utils'
 
 const { PORT, CHANNEL_IDS: _CHANNEL_IDS, SLACK_APP_ID } = getEnv()
-const CHANNEL_IDS = JSON.parse(_CHANNEL_IDS) as Record<string, string>
+// const CHANNEL_IDS = JSON.parse(_CHANNEL_IDS) as Record<string, string>
+const CHANNEL_IDS = _CHANNEL_IDS
+  .split(',')
+  .map((x) => x.split(':') as [string, string])
+  .reduce((p, [k, v]) => {
+    p[k] = v
+    return p
+  }, {} as Record<string, string>)
 const { ENABLE_AI: _ENABLE_AI } = process.env
 const ENABLE_AI = _ENABLE_AI === 'true' || _ENABLE_AI === '1'
 
