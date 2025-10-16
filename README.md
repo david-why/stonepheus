@@ -2,6 +2,8 @@
 
 Slack bot that handles ticketing in the [#ask-the-stonemasons channel](https://hackclub.slack.com/archives/C09GSTH65B7) on the [Hack Club Slack](https://hackclub.com/slack). Built for the [Siege](https://siege.hackclub.com) YSWS (in both senses of "built for" ;-)).
 
+**NOTE: Currently the FAQ and AI stuff don't work, and that's because Hack Club AI is down! Sadly I can't do anything about that so you'll have to believe me that it worked :((**
+
 ## What it does
 
 Head over to [#ask-the-stonemasons](https://hackclub.slack.com/archives/C09GSTH65B7) and send a message to open a ticket. This will forward the message into a stonemason-only backend channel, where they can resolve the ticket or assign it to someone.
