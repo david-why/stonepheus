@@ -75,6 +75,10 @@ async function handleEvent(event: SlackEvent) {
               text: `<${project.repoUrl}|Repo>`,
             })
           }
+          contextElements.push({
+            type: 'mrkdwn',
+            text: `<https://siege.hackclub.com/review/projects/${id}|Review>`
+          })
           const blocks: SlackBlock[] = [
             {
               type: 'section',
