@@ -3,10 +3,24 @@ import { parse as parseHTML } from 'node-html-parser'
 const { SIEGE_SESSION } = process.env
 
 export async function getProjectInfo(id: number) {
+  const [info, api] = await Promise.all([
+    getProjectInfoScrape(id),
+    getProjectInfoAPI(id),
+  ])
+  return {
+    ...api,
+    description: api.description.replace('\r\n', ' '),
+    week: parseInt(api.week_badge_text.substring(5)),
+    screenshot_url: info?.screenshotUrl || null,
+    time_text: info?.timeText,
+  }
+}
+
+export async function getProjectInfoScrape(id: number) {
   if (!SIEGE_SESSION) {
     return null
   }
-  const res = await fetch(`https://siege.hackclub.com/armory/${id}`, {
+  const res = await fetch(`https://siege.hackclub.com/projects/${id}`, {
     headers: {
       Cookie: `_siege_session=${SIEGE_SESSION}`,
     },
@@ -58,4 +72,34 @@ export async function getProjectInfo(id: number) {
     updatedDate,
     screenshotUrl,
   }
+}
+
+export async function getProjectInfoAPI(id: number) {
+  const res = (await fetch(
+    `https://siege.hackclub.com/api/public-beta/project/${id}`
+  ).then((r) => r.json())) as { error: string } | APIProject
+  if ('error' in res) {
+    throw new Error(JSON.stringify(res))
+  }
+  return res
+}
+
+interface APIProject {
+  id: number
+  name: string
+  description: string
+  status:
+    | 'building'
+    | 'submitted'
+    | 'pending_voting'
+    | 'waiting_for_review'
+    | 'finished'
+  repo_url: string
+  demo_url: string
+  created_at: string
+  updated_at: string
+  user: { id: number; name: string; display_name: string }
+  week_badge_text: `Week ${number}`
+  coin_value: `${number}` | '0.0'
+  is_update: boolean
 }

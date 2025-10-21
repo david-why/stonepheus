@@ -52,32 +52,36 @@ async function handleEvent(event: SlackEvent) {
         const id = parseInt(match[1]!)
         const project = await getProjectInfo(id)
         if (project) {
-          const safeTitle = project.title.replace(/[*<>|]/, '')
+          const safeTitle = project.name.replace(/[*<>|]/, '')
           const contextElements: SlackTextObject[] = [
             {
               type: 'plain_text',
-              text: `Week ${project.week}`,
+              text: project.week_badge_text,
             },
             {
               type: 'plain_text',
-              text: project.timeText,
+              text: project.time_text || '??:??',
             },
           ]
-          if (project.demoUrl) {
+          if (project.demo_url) {
             contextElements.push({
               type: 'mrkdwn',
-              text: `<${project.demoUrl}|Demo>`,
+              text: `<${project.demo_url}|Demo>`,
             })
           }
-          if (project.repoUrl) {
+          if (project.repo_url) {
             contextElements.push({
               type: 'mrkdwn',
-              text: `<${project.repoUrl}|Repo>`,
+              text: `<${project.repo_url}|Repo>`,
             })
           }
           contextElements.push({
             type: 'mrkdwn',
-            text: `<https://siege.hackclub.com/review/projects/${id}|Review>`
+            text: `<https://siege.hackclub.com/review/projects/${id}|Stonemason>`,
+          })
+          contextElements.push({
+            type: 'mrkdwn',
+            text: `<http://siege.hackclub.com/ysws-review/${project.week}/${project.user.id}|Review>`,
           })
           const blocks: SlackBlock[] = [
             {
@@ -99,11 +103,11 @@ async function handleEvent(event: SlackEvent) {
               elements: contextElements,
             },
           ]
-          if (project.screenshotUrl) {
+          if (project.screenshot_url) {
             blocks.splice(2, 0, {
               type: 'image',
               alt_text: 'Project screenshot',
-              image_url: project.screenshotUrl,
+              image_url: project.screenshot_url,
             })
           }
           result[url] = { blocks }
