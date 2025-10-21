@@ -47,7 +47,7 @@ async function handleEvent(event: SlackEvent) {
     console.log(event)
     const result: Record<string, { blocks: SlackBlock[] }> = {}
     for (const { url } of event.links) {
-      const match = /\/(?:review\/projects|armory)\/([0-9]+)$/.exec(url)
+      const match = /\/(?:review\/projects|armory|projects)\/([0-9]+)$/.exec(url)
       if (match) {
         const id = parseInt(match[1]!)
         const project = await getProjectInfo(id)
